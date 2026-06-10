@@ -1,0 +1,1097 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>π君大冒险 · 微积分深渊</title>
+<style>
+  :root{
+    --board:#1d3a31; --board-dk:#0f211b; --chalk:#f3efe2;
+    --gold:#f6c94e; --pink:#ef8aa2; --blue:#8fc7e8; --green:#9ed8a0; --bad:#e8836f;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{width:100%;height:100%;overflow:hidden;background:var(--board-dk);
+    font-family:"Chalkboard SE","Comic Sans MS","PingFang SC","Microsoft YaHei",sans-serif;
+    color:var(--chalk);user-select:none;-webkit-user-select:none;touch-action:none;}
+  canvas{display:block;position:absolute;inset:0;}
+  .serif{font-family:Georgia,"STIXGeneral","Times New Roman",serif;}
+
+  /* ---------- 战斗 HUD ---------- */
+  #hud{position:fixed;left:0;right:0;top:0;z-index:5;padding:7px 10px 8px;pointer-events:none;
+    background:linear-gradient(180deg,rgba(15,33,27,.95),rgba(15,33,27,.62) 80%,transparent);}
+  #hudRow{display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:14px;}
+  #hearts{font-size:17px;letter-spacing:2px;color:var(--pink);}
+  #score{color:var(--gold);} #combo{color:var(--blue);}
+  #waveTag{opacity:.85;}
+  #timerWrap{flex:1;min-width:90px;max-width:260px;height:8px;border:1px solid rgba(243,239,226,.4);border-radius:6px;overflow:hidden;}
+  #timerBar{height:100%;width:100%;background:var(--gold);transition:width .2s linear;}
+  #relicRow{font-size:15px;letter-spacing:3px;opacity:.95;}
+  #qline{margin-top:7px;font-size:15px;line-height:1.5;}
+  #qline .q{color:var(--gold);font-size:17px;}
+  #qline b{color:var(--blue);}
+  #proofList{margin:4px 0 0 4px;list-style:none;font-size:14px;line-height:1.65;}
+  #proofList li{opacity:.95;}
+  #proofList li .num{color:var(--gold);margin-right:6px;}
+  #proofList li.dead{text-decoration:line-through;opacity:.45;}
+  #proofList li.tried{color:var(--bad);opacity:.6;}
+
+  /* ---------- 按钮 ---------- */
+  .btn{pointer-events:auto;border:2px solid var(--chalk);background:rgba(15,33,27,.85);
+    color:var(--chalk);border-radius:12px;font-family:inherit;cursor:pointer;transition:transform .1s;}
+  .btn:active{transform:scale(.93);}
+  #ctrlR{position:fixed;right:12px;bottom:16px;z-index:6;display:none;flex-direction:column;gap:10px;align-items:flex-end;}
+  .roundBtn{border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.05;}
+  #pickBtn{width:70px;height:70px;font-size:24px;border-color:var(--blue);color:var(--blue);}
+  #flipBtn{width:56px;height:56px;font-size:20px;border-color:var(--gold);color:var(--gold);}
+  .miniLabel{font-size:10px;}
+  #quitBtn{position:fixed;right:10px;top:6px;z-index:7;display:none;padding:4px 10px;font-size:12px;border-radius:8px;opacity:.8;}
+
+  /* ---------- 全屏面板 ---------- */
+  .panel{position:fixed;inset:0;z-index:20;display:none;flex-direction:column;align-items:center;justify-content:center;
+    background:radial-gradient(ellipse at 50% 32%, #27493d 0%, var(--board) 55%, var(--board-dk) 100%);}
+  .panel.show{display:flex;}
+  #menu h1{font-family:Georgia,serif;font-size:clamp(38px,8.5vw,80px);letter-spacing:3px;
+    text-shadow:0 0 18px rgba(243,239,226,.3);}
+  #menu h1 em{font-style:normal;color:var(--gold);}
+  #menu .sub{margin:8px 0 22px;font-size:clamp(13px,2.5vw,16px);opacity:.85;letter-spacing:3px;}
+  .bigBtn{padding:13px 46px;font-size:19px;border-radius:14px;margin:7px;}
+  .bigBtn.primary{background:var(--gold);color:#1d3a31;border-color:var(--gold);font-weight:bold;}
+  #nameIn{margin:2px 0 14px;padding:11px 16px;width:min(280px,76vw);border-radius:12px;
+    border:2px solid rgba(243,239,226,.5);background:rgba(243,239,226,.08);color:var(--chalk);
+    font-family:inherit;font-size:15px;text-align:center;outline:none;}
+  #howTo{margin-top:22px;font-size:12px;opacity:.6;line-height:1.9;text-align:center;}
+
+  /* 章节选择 */
+  #chapters{justify-content:flex-start;overflow:hidden;}
+  #chHead{width:100%;max-width:900px;display:flex;align-items:center;gap:12px;padding:16px 18px 4px;}
+  #chHead h2{font-size:20px;color:var(--gold);flex:1;}
+  #chGrid{width:100%;max-width:900px;flex:1;overflow-y:auto;padding:8px 18px 40px;-webkit-overflow-scrolling:touch;
+    touch-action:pan-y;display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;align-content:start;}
+  .chCard{border:2px solid rgba(243,239,226,.4);border-radius:14px;padding:14px 16px;cursor:pointer;
+    background:rgba(243,239,226,.05);transition:transform .12s,border-color .2s;position:relative;}
+  .chCard:active{transform:scale(.97);}
+  .chCard h3{font-size:16px;color:var(--chalk);margin-bottom:4px;}
+  .chCard .tag{font-size:12px;opacity:.7;line-height:1.5;}
+  .chCard .best{font-size:12px;color:var(--gold);margin-top:6px;}
+  .chCard.done{border-color:var(--green);}
+  .chCard.done::after{content:"✓ 已征服";position:absolute;right:10px;top:10px;font-size:11px;color:var(--green);}
+  .chCard.endless{border-color:var(--pink);}
+  .chCard.endless h3{color:var(--pink);}
+
+  /* 波次提示 / 神器选择 / 结算 / 解析 */
+  .overlay{position:fixed;inset:0;z-index:15;display:none;align-items:center;justify-content:center;
+    background:rgba(10,22,18,.78);}
+  .overlay.show{display:flex;}
+  .card{background:var(--board);border:3px solid var(--gold);border-radius:18px;padding:24px 28px;
+    max-width:520px;width:92%;text-align:center;box-shadow:0 0 40px rgba(246,201,78,.2);
+    max-height:86vh;overflow-y:auto;-webkit-overflow-scrolling:touch;touch-action:pan-y;}
+  .card h2{color:var(--gold);font-size:24px;letter-spacing:4px;margin-bottom:8px;}
+  .card .desc{font-size:14px;opacity:.9;line-height:1.7;margin:6px 0 4px;}
+  #relicOpts{display:flex;flex-direction:column;gap:10px;margin-top:14px;}
+  .relicBtn{text-align:left;padding:12px 16px;border-radius:12px;font-size:14px;line-height:1.5;}
+  .relicBtn .rname{color:var(--gold);font-size:16px;}
+  .relicBtn .rdesc{opacity:.85;font-size:13px;}
+  #whyCard .why{font-size:14px;line-height:1.8;text-align:left;margin:10px 0 14px;
+    background:rgba(243,239,226,.06);border-radius:10px;padding:12px 14px;}
+  #resCard .stats{font-size:15px;line-height:2;margin:8px 0 12px;}
+  #resCard .stats b{color:var(--gold);font-size:20px;}
+
+  #toast{position:fixed;left:50%;bottom:104px;transform:translateX(-50%);z-index:30;
+    background:rgba(15,33,27,.94);border:1px solid var(--gold);color:var(--gold);
+    padding:8px 18px;border-radius:20px;font-size:14px;opacity:0;transition:opacity .25s;pointer-events:none;
+    max-width:88vw;text-align:center;line-height:1.5;}
+  #flash{position:fixed;inset:0;z-index:9;background:rgba(232,131,111,.35);opacity:0;pointer-events:none;transition:opacity .3s;}
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div id="flash"></div>
+
+<div id="hud" style="display:none">
+  <div id="hudRow">
+    <span id="hearts">♥♥♥♥</span>
+    <span id="score">分数 0</span>
+    <span id="combo"></span>
+    <span id="waveTag"></span>
+    <div id="timerWrap"><div id="timerBar"></div></div>
+    <span id="relicRow"></span>
+  </div>
+  <div id="qline"></div>
+</div>
+<button class="btn" id="quitBtn">✕ 退出本局</button>
+
+<div id="ctrlR">
+  <button class="btn roundBtn" id="pickBtn">✋<span class="miniLabel">行动</span></button>
+  <button class="btn roundBtn" id="flipBtn">⟲<span class="miniLabel">翻转</span></button>
+</div>
+
+<div class="panel show" id="menu">
+  <h1>π<em>君</em>大冒险</h1>
+  <div class="sub">— 微 积 分 深 渊 · Roguelike —</div>
+  <input id="nameIn" placeholder="输入昵称（保存战绩）" maxlength="16">
+  <button class="btn bigBtn primary" id="btnStart">进入深渊</button>
+  <div id="howTo">
+    你的武器不是剑，是<b>对高数的理解</b>。判断命题真伪、配对函数与导数、填补缺口方程、揪出伪证明中的破绽。<br>
+    答错掉血，连击涨分，过波选定理神器强化自己，击败章节 BOSS 征服深渊。<br>
+    电脑：WASD/方向键移动 · E/空格 行动 · F 翻转 ｜ 手机：摇杆 + 右下按钮
+  </div>
+</div>
+
+<div class="panel" id="chapters">
+  <div id="chHead">
+    <button class="btn" style="padding:6px 14px" id="btnHome">←</button>
+    <h2>选择深渊层</h2><span id="prog" style="font-size:13px;opacity:.7"></span>
+  </div>
+  <div id="chGrid"></div>
+</div>
+
+<div class="overlay" id="introOv"><div class="card" id="introCard">
+  <h2 id="introTitle"></h2><div class="desc" id="introDesc"></div>
+  <button class="btn bigBtn primary" id="introGo" style="margin-top:14px">开打</button>
+</div></div>
+
+<div class="overlay" id="relicOv"><div class="card">
+  <h2>选择定理神器</h2>
+  <div class="desc">每件神器的能力都来自定理本身的灵魂</div>
+  <div id="relicOpts"></div>
+</div></div>
+
+<div class="overlay" id="whyOv"><div class="card" id="whyCard">
+  <h2 id="whyTitle"></h2><div class="why" id="whyText"></div>
+  <button class="btn bigBtn primary" id="whyGo">继续</button>
+</div></div>
+
+<div class="overlay" id="resOv"><div class="card" id="resCard">
+  <h2 id="resTitle"></h2>
+  <div class="stats" id="resStats"></div>
+  <button class="btn bigBtn primary" id="resRetry">再战一局</button>
+  <button class="btn bigBtn" id="resBack">回到选层</button>
+</div></div>
+
+<div id="toast"></div>
+<script>
+"use strict";
+/* =========================================================
+   题库：tf=[命题,真假,一句话解析]  pair=[左,右]
+   gap=[带▢的题面, 正确答案, [干扰项], 是否翻转出场]
+========================================================= */
+const BANK=[
+{ name:"函数与极限", icon:"lim", desc:"无穷的入口：极限、连续与间断",
+tf:[
+["单调有界数列必收敛",1,"实数完备性的化身——确界原理"],
+["有界数列必收敛",0,"反例：(-1)ⁿ 有界却永远在 ±1 间振荡"],
+["lim x→0 x·sin(1/x) = 0",1,"有界×无穷小=无穷小，sin被x压扁"],
+["lim x→0 sin(1/x) = 0",0,"它在[-1,1]里无限振荡，极限根本不存在"],
+["无穷小是一个很小的正数",0,"无穷小是趋于0的变量（过程），不是数"],
+["无穷小 × 有界量 仍是无穷小",1,"夹逼：|有界|≤M，被无穷小拖向0"],
+["两个无穷大之和必是无穷大",0,"x与-x：∞-∞是未定式，可以等于任何数"],
+["0.999⋯（无限循环）= 1",1,"它定义为级数Σ9/10ⁿ的和，恰好等于1"],
+["lim(f+g)存在 ⇒ limf、limg都存在",0,"f=sin(1/x),g=-sin(1/x)：和存在，各自不存在"],
+["1^∞ 是未定式",1,"底→1与指数→∞互相拉扯，结果可为任何数"],
+["0^∞ 是未定式",0,"底趋0指数趋∞只会更快归零，结果就是0"],
+["lim x→0⁺ x·lnx = -∞",0,"幂函数压倒对数，极限是0"],
+["第一类间断点处左右极限都存在",1,"跳跃与可去都属第一类——定义如此"],
+["sin(1/x) 在 x=0 是跳跃间断",0,"单侧极限不存在（振荡），是第二类间断"],
+["等价无穷小可在加减中随意替换",0,"tanx-sinx换成x-x=0就翻车，真值x³/2"],
+],
+pair:[["lim sinx/x (x→0)","1"],["lim (1+1/n)ⁿ","e"],["lim (1-cosx)/x² (x→0)","1/2"],
+["lim arctanx (x→+∞)","π/2"],["lim (3x²+1)/(x²-1) (x→∞)","3"],["lim (e²ˣ-1)/x (x→0)","2"],
+["lim (1+2/n)ⁿ","e²"],["lim qⁿ (|q|<1)","0"]],
+gap:[
+["lim x→0 sin5x/x = ▢","5",["1","0","1/5"],0],
+["lim x→0 (1-cosx)/x² = ▢","1/2",["1","0","2"],0],
+["lim n→∞ (1+3/n)ⁿ = ▢","e³",["e","3e","∞"],0],
+["x→0 时 ln(1+x) ~ ▢","x",["x²","1","ex"],0],
+["lim x→1 (x²-1)/(x-1) = ▢","2",["0","1","不存在"],0],
+["lim x→∞ sinx/x = ▢","0",["1","不存在","∞"],0],
+["f在a连续 ⇔ lim x→a f(x) = ▢","f(a)",["0","f'(a)","∞"],0],
+["lim x→0 (aˣ-1)/x = ▢","lna",["a","1","0"],0],
+["连续的含义：▢→0 时必有 Δy→0","Δx",["dy","dx","∇y"],1],
+]},
+{ name:"导数与微分", icon:"d/dx", desc:"变化率的世界：可导、微分与求导法则",
+tf:[
+["可导必连续",1,"差商极限存在迫使Δy→0"],
+["连续必可导",0,"|x|在0连续却长着尖角"],
+["存在处处连续、处处不可导的函数",1,"魏尔斯特拉斯函数，直觉的粉碎机"],
+["f'(x₀)=0 ⇒ x₀ 是极值点",0,"y=x³在0处导数为0却一路上扬"],
+["(uv)' = u'v + uv'",1,"两个增量各自贡献一份"],
+["(uv)' = u'v'",0,"史上最经典错觉，量纲都不对"],
+["可导函数的导函数必连续",0,"x²sin(1/x)处处可导，f'在0振荡不连续"],
+["导函数即使不连续也满足介值性",1,"达布定理：导函数是特殊的存在"],
+["角度制下 (sinx)'=cosx 仍成立",0,"会多出π/180——弧度才是自然单位"],
+["满足 y'=y 的函数恰是 y=Ceˣ",1,"e被'导数等于自己'这条性质定义"],
+["dy = Δy 总是成立",0,"dy只是Δy的线性主部，差个高阶项"],
+["一元函数：可微 ⇔ 可导",1,"一元世界等价；二元就不是了"],
+["切线就是与曲线只交一次的直线",0,"y=x³在原点的切线y=0横穿曲线"],
+["反函数图像翻转后斜率互为倒数",1,"(f⁻¹)'=1/f'，水平切线翻成竖直"],
+],
+pair:[["sinx 的导数","cosx"],["cosx 的导数","-sinx"],["lnx 的导数","1/x"],
+["tanx 的导数","sec²x"],["arctanx 的导数","1/(1+x²)"],["arcsinx 的导数","1/√(1-x²)"],
+["aˣ 的导数","aˣlna"],["√x 的导数","1/(2√x)"]],
+gap:[
+["(x·eˣ)' = ▢","(x+1)eˣ",["x·eˣ","eˣ","x·eˣ⁻¹"],0],
+["y=x² 在点(1,1)处切线斜率 = ▢","2",["1","0","4"],0],
+["(xˣ)' = ▢","xˣ(lnx+1)",["x·xˣ⁻¹","xˣlnx","xˣ"],0],
+["x²+y²=1：dy/dx = ▢","-x/y",["x/y","-y/x","1"],0],
+["f'(x)=lim(Δx→0) ▢/Δx","Δy",["dy","Δx","∇y"],1],
+["(sinx)⁽⁴⁾ = ▢","sinx",["cosx","-sinx","-cosx"],0],
+["可导 ▢ 连续","⇒",["⇔","⇎","⇐"],1],
+["d(arctanx) = ▢·dx","1/(1+x²)",["1/(1-x²)","arctanx","1/x²"],0],
+["dy/dx = dy/du · ▢","du/dx",["dx/du","du","u'x'"],0],
+]},
+{ name:"中值定理与应用", icon:"f'(ξ)", desc:"导数的力量：中值定理、洛必达、极值",
+tf:[
+["罗尔定理要求 f(a)=f(b)",1,"两端等高才保证中间有水平切线"],
+["拉格朗日中值定理要求 f(a)=f(b)",0,"它是斜放的罗尔，不需要等高"],
+["区间内 f'>0 ⇒ f 严格递增",1,"中值定理一行即证"],
+["f 在 x₀ 取极大值 ⇒ f'(x₀)=0",0,"-|x|在0取极大却不可导——费马引理需先可导"],
+["洛必达失效时原极限仍可能存在",1,"lim(x+sinx)/x=1，但f'/g'振荡无极限"],
+["0/0 型用洛必达必能算出结果",0,"f'/g'可能仍是0/0或不存在——它是单向工具"],
+["f''>0 ⇒ 曲线开口向上（凹）",1,"斜率递增，切线越转越陡"],
+["拐点处必有 f''=0",0,"y=x^(1/3)在0是拐点但f''不存在"],
+["端点可以是极值点",0,"极值需要双侧邻域作证，端点没有"],
+["闭区间上连续函数必取得最值",1,"最值定理——'闭'与'连续'缺一不可"],
+["泰勒多项式阶数越高，全数轴上越精确",0,"只在展开点附近作数，'局部'二字千金"],
+["eˣ ≥ 1+x 对一切实数成立",1,"构造f=eˣ-1-x求最小值，最优雅的证法"],
+["曲线可以与自己的渐近线相交",1,"y=sinx/x与y=0相交无穷多次"],
+],
+pair:[["证明 f'(ξ)=0 找谁","罗尔定理"],["0/0 型极限找谁","洛必达"],
+["局部多项式逼近找谁","泰勒公式"],["平均速度=某瞬时速度","拉格朗日中值"],
+["证明不等式的套路","构造函数+单调性"],["斜渐近线的 k","lim f(x)/x"],
+["误差控制找谁","泰勒余项"],["数值求根找谁","牛顿切线法"]],
+gap:[
+["极大值判定：f'(x₀)=0 且 f''(x₀) ▢ 0","<",[">","=","≥"],1],
+["凹（开口向上）：f''(x) ▢ 0",">",["=","≤","≠"],1],
+["lim x→0 (x-sinx)/x³ = ▢","1/6",["0","1/3","1"],0],
+["斜渐近线斜率 k = lim ▢","f(x)/x",["f'(x)","f(x)","x/f(x)"],0],
+["f(b)-f(a) = f'(ξ)·▢","(b-a)",["(b+a)","ξ","ab"],0],
+["对一切 x：eˣ ≥ ▢","1+x",["x","1+x²","ex"],0],
+["驻点的定义：f'(x₀) = ▢","0",["1","f(x₀)","∞"],0],
+["y=x³-3x 的极大值点 x = ▢","-1",["1","0","√3"],0],
+]},
+{ name:"不定积分", icon:"∫", desc:"求导的逆战：原函数与积分技巧",
+tf:[
+["∫f'(x)dx = f(x)+C",1,"+C由'导数相同差常数'撑腰"],
+["∫dx/x = lnx + C",0,"缺绝对值——负半轴ln(-x)求导也是1/x"],
+["e^(-x²) 有原函数",1,"连续函数必有原函数（变上限积分造）"],
+["e^(-x²) 的原函数是初等函数",0,"它叫erf，跳出了初等函数词汇表"],
+["分部积分来自乘积求导法则",1,"(uv)'=u'v+uv' 移项再积分"],
+["∫fg dx = ∫f dx · ∫g dx",0,"积分没有'乘法分配'——这是最危险的幻觉"],
+["有理函数的原函数必是初等函数",1,"部分分式只产出ln与arctan——封闭领地"],
+["所有初等函数的原函数都初等",0,"e^(-x²)、sinx/x都是著名钉子户"],
+["验证积分结果只需求导一次",1,"解难验易——单向不对称"],
+["断开的定义域上 +C 仍是同一常数",0,"每个连通段各有一个常数"],
+["∫tanx dx = -ln|cosx|+C",1,"分子是分母导数的相反数"],
+["∫sec²x dx = secx + C",0,"应为tanx+C，(secx)'=secx·tanx"],
+],
+pair:[["∫cosx dx","sinx+C"],["∫dx/(1+x²)","arctanx+C"],["∫eˣdx","eˣ+C"],
+["∫dx/√(1-x²)","arcsinx+C"],["∫sec²x dx","tanx+C"],["∫dx/x","ln|x|+C"],
+["∫sinx dx","-cosx+C"],["∫x dx","x²/2+C"]],
+gap:[
+["∫lnx dx = xlnx - ▢ + C","x",["lnx","1","x²/2"],0],
+["分部积分：∫udv = uv - ▢","∫vdu",["∫udu","∫vdv","vu"],0],
+["见 √(a²-x²) ⇒ 令 x = ▢","a·sinθ",["a·tanθ","a·secθ","aθ"],0],
+["∫2x·e^(x²)dx = ▢ + C","e^(x²)",["2e^(x²)","x²e^(x²)","e^(2x)"],0],
+["∫xeˣdx = ▢·eˣ + C","(x-1)",["x","(x+1)","x²/2"],0],
+["∫tanx dx = -ln|▢| + C","cosx",["sinx","tanx","secx"],0],
+["1/(x²-1) = ½[1/(x-1) ▢ 1/(x+1)]","-",["+","×","÷"],0],
+["∫aˣdx = aˣ/▢ + C","lna",["a","x","lnx"],0],
+]},
+{ name:"定积分及应用", icon:"∫ₐᵇ", desc:"累积的世界：黎曼和、反常积分与几何应用",
+tf:[
+["定积分在定义上是黎曼和的极限",1,"定义里没有'原函数'三个字"],
+["∫₋₁¹ dx/x² = -2",0,"x=0是瑕点，N-L公式前提被破坏，实际发散"],
+["奇函数在对称区间上积分为 0",1,"左右两块镜像反号相消"],
+["∫ₐᵇf dx 一定等于曲线下面积",0,"它是'带符号的面积'，下方部分为负"],
+["变上限积分为连续函数造出原函数",1,"Φ'(x)=f(x)，原函数是积出来的"],
+["定积分的值依赖积分变量的记号",0,"哑变量只是循环计数器"],
+["Gabriel号角体积有限、表面积无限",1,"装得满油漆却刷不完内壁"],
+["∫₀^∞ sinx/x dx 绝对收敛",0,"加绝对值后发散——它靠正负抵消活着"],
+["p>1 时 ∫₁^∞ dx/xᵖ 收敛",1,"p=1恰好阵亡，临界线记牢"],
+["被积函数有瑕点也能直接套 N-L 公式",0,"第2条就是血的教训"],
+["(∫ₐˣ f(t)dt)' = f(x)",1,"微积分基本定理的一半"],
+["∫₀^π sinx dx = 0",0,"半个正弦波全在轴上方，=2"],
+],
+pair:[["∫₀¹x²dx","1/3"],["∫₀^π sinx dx","2"],["∫₀¹dx/(1+x²)","π/4"],
+["∫₋∞^∞ e^(-x²)dx","√π"],["∫₁^e dx/x","1"],["∫₋₂² x³dx","0"],
+["∫₀¹√x dx","2/3"],["∫₀^∞ e^(-x)dx","1 (反常但收敛)"]],
+gap:[
+["N-L公式：∫ₐᵇf dx = F(b) ▢ F(a)","-",["+","×","÷"],0],
+["绕x轴旋转体体积 V = π∫ₐᵇ ▢ dx","f²(x)",["f(x)","2f(x)","f'(x)"],0],
+["弧长微元 ds = √(1+▢)·dx","y'²",["y²","y''","x²"],0],
+["p积分 ∫₁^∞dx/xᵖ 收敛 ⇔ p ▢ 1",">",["=","≤","≠"],1],
+["lim (1/n)Σf(k/n) = ▢","∫₀¹f dx",["∫₀^∞f dx","f'(0)","Σf(n)"],0],
+["∫₋ₐᵃ(x³+x²)dx = ▢","2∫₀ᵃx²dx",["0","2∫₀ᵃx³dx","∫₀ᵃx³dx"],0],
+["平均值 f̄ = ∫ₐᵇf dx ÷ ▢","(b-a)",["(b+a)","ab","2"],0],
+["f是功率，∫f dt 是 ▢","能量",["力","加速度","动量"],0],
+]},
+{ name:"多元函数微分学", icon:"∂", desc:"高维的陷阱：偏导、可微、梯度与二重积分",
+tf:[
+["偏导数都存在 ⇒ 函数连续",0,"偏导只看两条轴线，管不住四面八方"],
+["偏导数存在且连续 ⇒ 可微",1,"实用判据——本章考点之王"],
+["二重极限沿一切直线相同就存在",0,"x²y/(x⁴+y²)沿直线全为0，沿y=x²得1/2"],
+["梯度方向是函数增长最快的方向",1,"方向导数=|∇f|cosθ，θ=0拉满"],
+["梯度与等高线平行",0,"垂直！最陡的路垂直于盘山道"],
+["正三角Δ是拉普拉斯算子，∇是梯度",1,"Δ=∇·∇，一个倒立隔开两个概念"],
+["混合偏导 f_xy 与 f_yx 永远相等",0,"需二阶混合偏导连续（克莱罗定理）"],
+["AC-B²<0 ⇒ 该驻点是鞍点",1,"马鞍面：一个方向凹一个方向凸"],
+["拉格朗日乘数 λ 只是凑数的系数",0,"它是影子价格：约束松一点目标涨多少"],
+["极坐标的面积微元是 r·dr·dθ",1,"那个r是雅可比——面积汇率"],
+["可微 ⇒ 偏导数存在",1,"可微是最强的，单向箭头链顶端"],
+["格林公式把环量化为区域内散度累积",0,"是旋度(∂Q/∂x-∂P/∂y)的累积"],
+],
+pair:[["梯度 grad f","∇f"],["拉普拉斯算子","Δf"],["散度 div F","∇·F"],
+["旋度 rot F","∇×F"],["方向导数","∇f·e"],["全微分 dz","z_x dx+z_y dy"],
+["极坐标面积微元","r·dr·dθ"],["条件极值","∇f=λ∇g"]],
+gap:[
+["z=x²y：∂z/∂x = ▢","2xy",["x²","2x","2y"],0],
+["梯度：grad f = ▢f","∇",["∂","d","δ"],1],
+["拉普拉斯：▢f = f_xx + f_yy","Δ",["∂","δ","d"],1],
+["全微分 dz = z_x dx ▢ z_y dy","+",["-","×","="],0],
+["极小值：AC-B² ▢ 0 且 A>0",">",["=","≠","≤"],1],
+["F(x,y,z)=0：∂z/∂x = ▢","-F_x/F_z",["F_x/F_z","-F_z/F_x","F_x·F_z"],0],
+["方向导数的最大值 = ▢","|∇f|",["0","∇f·e","Δf"],0],
+["极坐标：dσ = ▢·dr·dθ","r",["1","r²","θ"],0],
+]},
+{ name:"微分方程", icon:"y'", desc:"变化的法则：从 y'=y 到振动方程",
+tf:[
+["微分方程的解是一族函数",1,"通解是'所有可能的历史'"],
+["y'=y 的解只有 y=eˣ",0,"是一整族 Ceˣ，初值才钉死C"],
+["n 阶方程通解含 n 个独立常数",1,"自由度=阶数"],
+["d²y/dx² 可像分数一样拆开移项",0,"一阶记号能拆是巧合，二阶不行"],
+["特征方程把微分方程变成代数方程",1,"e^(rx)求导只乘系数——算子的特征向量"],
+["重根 r 时通解是 (C₁+C₂)e^(rx)",0,"C₁+C₂还是一个常数！须乘x补线性无关"],
+["非齐次通解 = 齐次通解 + 一个特解",1,"线性叠加：特解定位置，齐次解张空间"],
+["两个特解之和仍是该方程的特解",0,"特解之差才是齐次解，和一般不再满足方程"],
+["y''+y=0 描述简谐振动",1,"回复力：加速度与位移反号成正比"],
+["logistic 模型的增长永不减速",0,"逼近容量M时增速归零——S形曲线"],
+["共轭复根的解里有 sin 和 cos",1,"欧拉公式：复指数的实部虚部就是振荡"],
+["解可以在有限的 x 处冲向无穷",1,"y'=y²的解1/(1-x)在x=1爆破"],
+],
+pair:[["y'=ky","指数增长/衰变"],["x''+ω²x=0","简谐振动"],
+["y'=ky(1-y/M)","S形曲线"],["特征根 α±βi","e^(αx)(C₁cosβx+C₂sinβx)"],
+["特征方程重根 r","(C₁+C₂x)e^(rx)"],["P_y=Q_x","全微分方程"],
+["换元 u=y/x","齐次方程"],["乘 e^∫Pdx","一阶线性方程"]],
+gap:[
+["y'=y, y(0)=2 ⇒ y = ▢","2eˣ",["eˣ","2e⁻ˣ","e²ˣ"],0],
+["特征方程：r² + pr + ▢ = 0","q",["y","C","x"],0],
+["y''+y=0：y = C₁cosx + C₂·▢","sinx",["eˣ","x","tanx"],0],
+["重根r：y = (C₁ + C₂·▢)e^(rx)","x",["1","r","x²"],0],
+["可分离：dy/g(y) = ▢·dx","f(x)",["g(y)","y","C"],0],
+["积分因子 μ = e^(∫▢dx)","P(x)",["Q(x)","y","C"],0],
+["非齐次通解 = 齐次通解 ▢ 特解","+",["-","×","÷"],0],
+["复根 α±βi：振荡频率由 ▢ 决定","β",["α","i","C"],0],
+]},
+{ name:"无穷级数", icon:"Σ", desc:"无穷之和：收敛、发散与幂级数",
+tf:[
+["通项→0 是级数收敛的必要条件",1,"必要而不充分——下一条就是反例"],
+["通项→0 ⇒ 级数收敛",0,"调和级数Σ1/n：通项归零照样发散"],
+["条件收敛级数重排后可收敛到任意数",1,"黎曼重排定理——交换律的特权被收回"],
+["收敛级数任意加括号会改变和",0,"收敛级数加括号安全；发散级数加括号才是骗局"],
+["ρ=1 时比值判别法失效",1,"Σ1/n与Σ1/n²的ρ都是1，命运相反"],
+["调和级数 Σ1/n 收敛",0,"分组每组超1/2，无穷多组——发散，只是散得极慢"],
+["幂级数收敛域是以原点为心的区间",1,"阿贝尔定理：一点收敛，更靠内全收敛"],
+["泰勒级数收敛就必收敛到原函数",0,"e^(-1/x²)的泰勒级数恒为0≠它自己"],
+["Σ1/n² = π²/6",1,"巴塞尔问题——π来自sin的零点结构"],
+["1-1+1-1+⋯ = 1/2",0,"部分和在0,1间振荡，发散；'1/2'是把发散级数当数算的骗局"],
+["幂级数在收敛区间内可逐项求导",1,"内闭一致收敛买下的特权卡"],
+["绝对收敛的级数重排后和不变",1,"交换律是绝对收敛者的特权"],
+],
+pair:[["Σ1/n","发散"],["Σ1/n²","π²/6"],["Σxⁿ/n!","eˣ"],
+["Σxⁿ (|x|<1)","1/(1-x)"],["Σ(-1)ⁿ⁻¹/n","ln2"],["e^(iπ)+1","0"],
+["交错+单调趋0","莱布尼茨判别法"],["Σqⁿ (|q|<1)","q/(1-q)？不,是1/(1-q)"]],
+gap:[
+["p级数收敛 ⇔ p ▢ 1",">",["=","≥","≠"],1],
+["比值判别法收敛：ρ ▢ 1","<",["=","≥","≠"],1],
+["eˣ = Σ xⁿ/▢","n!",["n","n²","2ⁿ"],0],
+["收敛的必要条件：lim aₙ = ▢","0",["1","∞","S"],0],
+["Σ1/n² = ▢","π²/6",["π/6","π²/4","∞"],0],
+["收敛半径 R = lim|aₙ/▢|","aₙ₊₁",["aₙ₋₁","n","x"],0],
+["上帝公式：e^(iπ) + 1 = ▢","0",["-1","i","π"],0],
+["|x|<1：1/(1-x) = Σ ▢","xⁿ",["nxⁿ","xⁿ/n","x²ⁿ"],0],
+]},
+];
+// 修正第八章一个配对的右项
+BANK[7].pair[7]=["Σqⁿ (|q|<1)","1/(1-q)"];
+
+/* ============== BOSS：伪证明找茬 ============== */
+const PROOFS=[
+{ch:0,t:"伪证明：1 = 2",L:["设 a = b","两边乘 a：a² = ab","两边减 b²：a²-b² = ab-b²","因式分解：(a+b)(a-b) = b(a-b)","两边除以 (a-b)：a+b = b","由 a=b 得 2b=b，即 2=1"],bad:4,why:"a=b 意味着 a-b=0，第5步除以了 0。整场骗局只靠这一步——除法永远要先审问分母。"},
+{ch:0,t:"伪证明：lim sin(1/x)=0 (x→0)",L:["对任意 x≠0，|sin(1/x)| ≤ 1","所以 sin(1/x) 是有界函数","x→0 时 1/x → ∞","输入趋于∞，故 sin(1/x) → 0","所以极限为 0"],bad:3,why:"sin 在 ∞ 处没有极限！输入跑向无穷只会让它在 [-1,1] 间永恒振荡。第3关的 x·sin(1/x)→0 靠的是外面那个 x，不是 sin 自己。"},
+{ch:1,t:"伪证明：用洛必达算 lim sinx/x",L:["x→0 时这是 0/0 型","用洛必达：lim sinx/x = lim cosx/1","cos0 = 1","所以 sinx/x → 1，证毕"],bad:1,why:"循环论证！洛必达需要 (sinx)'=cosx，而这个导数公式的推导恰恰依赖 sinx/x→1。用结论证明结论，逻辑学的头号通缉犯。"},
+{ch:1,t:"伪证明：-1 = 1",L:["对任意实数 x，√(x²) = x","取 x=-1：√((-1)²) = -1","但 √1 = 1","所以 -1 = 1"],bad:0,why:"√(x²)=|x| 而不是 x。算术平方根永远非负——第1步就埋了雷，后面全是导火索。"},
+{ch:2,t:"伪证明：可导函数必单调",L:["设 f 可导，任取 x₁ < x₂","由拉格朗日：f(x₂)-f(x₁)=f'(ξ)(x₂-x₁)","其中 x₂-x₁ > 0","f'(ξ) 是确定的数：要么≥0要么<0","故 f 要么递增要么递减，必单调"],bad:4,why:"ξ 随 x₁,x₂ 而变！每对点各有各的 ξ，符号可以不同。'对每对点存在某个ξ' ≠ '存在统一符号的ξ'——量词顺序的经典陷阱。"},
+{ch:3,t:"伪证明：0 = 1（分部积分版）",L:["对 ∫dx/x 用分部积分","取 u=1/x, dv=dx，则 du=-dx/x², v=x","∫dx/x = (1/x)·x - ∫x·(-1/x²)dx","= 1 + ∫dx/x","两边消去 ∫dx/x，得 0 = 1"],bad:4,why:"不定积分是一族函数，两边各差一个任意常数。'消去'两个只相差常数的函数族是非法的——0=1 其实是 C=C'+1，毫无矛盾。"},
+{ch:4,t:"伪计算：∫₋₁¹ dx/x² = -2",L:["1/x² 的原函数是 -1/x","用牛顿-莱布尼茨：[-1/x] 从 -1 到 1","= (-1) - (1) = -2","正的函数积出负数，虽怪但公式没错"],bad:1,why:"x=0 是瑕点，被积函数在区间内无界，牛顿-莱布尼茨的前提（连续）被破坏。这个反常积分实际发散——第4行的'公式没错'是红鲱鱼。"},
+{ch:5,t:"伪证明：偏导存在 ⇒ 可微",L:["设 f=xy/(x²+y²)，补 f(0,0)=0","沿 x 轴：f(x,0)≡0，故 f_x(0,0)=0","沿 y 轴：f(0,y)≡0，故 f_y(0,0)=0","两个偏导都存在，所以 f 在原点连续","因此 f 在原点可微"],bad:3,why:"偏导存在推不出连续！f 沿 y=x 趋于原点的极限是 1/2≠0，函数在原点根本不连续。偏导只看两条轴线——二元世界的头号陷阱。"},
+{ch:6,t:"伪结论：解在全数轴上存在",L:["解 y'=y²，y(0)=1","分离变量：dy/y² = dx","积分：-1/y = x + C","由 y(0)=1 得 C=-1，y = 1/(1-x)","这就是定义在全体实数上的解"],bad:4,why:"解在 x=1 处爆破（blow-up）！存在区间只有 (-∞,1)。微分方程的解可以在有限时间内冲向无穷——'局部存在'与'全局存在'是两回事。"},
+{ch:7,t:"伪证明：0 = 1/2（Grandi级数）",L:["设 S = 1-1+1-1+1-⋯","S = 1-(1-1+1-⋯) = 1-S","解得 2S=1，S = 1/2","又 S=(1-1)+(1-1)+⋯ = 0","所以 0 = 1/2"],bad:0,why:"第1步就有罪：把发散级数当成一个数 S。部分和在 0、1 间振荡，S 根本不存在——后续一切运算都建立在幽灵之上。"},
+{ch:7,t:"伪证明：ln2 = ½ln2",L:["ln2 = 1-1/2+1/3-1/4+1/5-⋯","把各项重新排列分组","重排后逐项化简，恰得原级数的一半","于是 ln2 = ½ln2","即 1 = ½"],bad:1,why:"它只是条件收敛！黎曼重排定理：条件收敛级数重排后可以收敛到任何数。无穷世界里，加法交换律是绝对收敛者的特权。"},
+];
+
+/* ============== 定理神器 ============== */
+const RELICS=[
+{id:"squeeze", icon:"≤≥", name:"夹逼定理", desc:"每一波中，第一次受到的伤害被两边夹住而免除"},
+{id:"ivt",     icon:"ξ",  name:"介值续命", desc:"濒死时取到中间值：保留最后1颗♥（每局一次）"},
+{id:"equiv",   icon:"~",  name:"等价无穷小", desc:"时间流速变为原来的 0.8 倍，从容思考"},
+{id:"ratio",   icon:"ρ<1",name:"比值判别法", desc:"收敛加速：π君移动速度 +30%"},
+{id:"mono",    icon:"↗",  name:"单调有界", desc:"连击有界但不归零：答错时连击不再清空"},
+{id:"taylor",  icon:"≈",  name:"泰勒消项", desc:"缺口方程关自动划掉一个错误选项"},
+{id:"radius",  icon:"R",  name:"收敛半径", desc:"拾取与行动半径 +60%"},
+];
+</script>
+<script>
+"use strict";
+/* ================= 工具 / 存档 ================= */
+const $=id=>document.getElementById(id);
+const store={mem:{},get(k){try{return localStorage.getItem(k)??this.mem[k]??null}catch(e){return this.mem[k]??null}},
+set(k,v){this.mem[k]=v;try{localStorage.setItem(k,v)}catch(e){}}};
+let prof={done:[],best:{}};
+try{prof=Object.assign(prof,JSON.parse(store.get("piProf")||"{}"))}catch(e){}
+let doneSet=new Set(prof.done||[]);
+let playerName=store.get("piName")||"";
+function saveProf(){
+  prof.done=[...doneSet];
+  store.set("piProf",JSON.stringify(prof));
+  if(playerName)fetch("api/save",{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({name:playerName,done:prof.done,best:prof.best})}).catch(()=>{});
+}
+async function syncLoad(){
+  if(!playerName)return;
+  try{
+    const r=await fetch("api/load?name="+encodeURIComponent(playerName));
+    if(r.ok){
+      const d=await r.json();
+      (d.done||[]).forEach(i=>doneSet.add(i));
+      for(const k in (d.best||{}))prof.best[k]=Math.max(prof.best[k]||0,d.best[k]);
+      prof.done=[...doneSet];store.set("piProf",JSON.stringify(prof));
+      if($("chapters").classList.contains("show"))buildChGrid();
+    }
+  }catch(e){}
+}
+function adoptName(){
+  const v=($("nameIn").value||"").trim();
+  if(v){playerName=v;store.set("piName",v);}
+  syncLoad();
+}
+const FLIP={"Δ":"∇","∇":"Δ","<":">",">":"<","≤":"≥","≥":"≤","⇒":"⇐","⇐":"⇒","±":"∓","∓":"±"};
+function flipText(t){if(FLIP[t])return FLIP[t];if(FLIP[t[0]])return FLIP[t[0]]+t.slice(1);return t;}
+function isFlippable(t){return !!(FLIP[t]||FLIP[t[0]]);}
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a;}
+const rand=(a,b)=>a+Math.random()*(b-a);
+
+/* ================= 音效 ================= */
+let AC=null;
+function beep(f,d,t,v){try{AC=AC||new (window.AudioContext||window.webkitAudioContext)();
+  const o=AC.createOscillator(),g=AC.createGain();o.type=t||"sine";o.frequency.value=f;
+  g.gain.setValueAtTime(v||.1,AC.currentTime);g.gain.exponentialRampToValueAtTime(.001,AC.currentTime+d);
+  o.connect(g);g.connect(AC.destination);o.start();o.stop(AC.currentTime+d);}catch(e){}}
+const sndOK=()=>{beep(660,.1,"triangle");beep(990,.16,"triangle",.07)};
+const sndBad=()=>beep(150,.3,"sawtooth",.1);
+const sndPick=()=>beep(440,.08,"sine",.07);
+const sndWin=()=>[523,659,784,1047].forEach((f,i)=>setTimeout(()=>beep(f,.28,"triangle",.12),i*110));
+
+/* ================= 画布 ================= */
+const cv=$("cv"),ctx=cv.getContext("2d");
+const W=960,H=560;
+let scale=1,offX=0,offY=0,topPad=120;
+function resize(){
+  cv.width=innerWidth*devicePixelRatio;cv.height=innerHeight*devicePixelRatio;
+  cv.style.width=innerWidth+"px";cv.style.height=innerHeight+"px";
+  scale=Math.min(innerWidth/W,innerHeight/H);
+  offX=(innerWidth-W*scale)/2;offY=(innerHeight-H*scale)/2;
+  const hudH=$("hud").style.display==="none"?0:$("hud").offsetHeight;
+  topPad=Math.max(96,(hudH+8-offY)/scale);
+}
+addEventListener("resize",()=>setTimeout(resize,80));
+
+/* ================= 局内状态 ================= */
+let screen="menu";  // menu | chapters | play
+let run=null;       // 一局
+let cards=[],balls=[],carried=null,particles=[],dust=[];
+let player={x:W/2,y:H*0.6,vx:0,vy:0,ph:0,face:1};
+let shake=0;
+for(let i=0;i<24;i++)dust.push({x:Math.random()*W,y:Math.random()*H,r:rand(.6,1.7),s:rand(3,11)});
+
+function toast(msg,ms){const t=$("toast");t.innerHTML=msg;t.style.opacity=1;
+  clearTimeout(t._tm);t._tm=setTimeout(()=>t.style.opacity=0,ms||2000);}
+function flashRed(){const f=$("flash");f.style.opacity=1;setTimeout(()=>f.style.opacity=0,120);shake=10;}
+
+function show(id,on){$(id).classList[on?"add":"remove"]("show");}
+
+/* ================= 章节选择 ================= */
+function buildChGrid(){
+  const g=$("chGrid");g.innerHTML="";
+  BANK.forEach((b,i)=>{
+    const c=document.createElement("div");
+    c.className="chCard"+(doneSet.has(i)?" done":"");
+    const best=prof.best["ch"+i]||0;
+    c.innerHTML='<h3>第'+(i+1)+'层 · '+b.name+' <span class="serif" style="color:var(--gold)">'+b.icon+'</span></h3>'+
+      '<div class="tag">'+b.desc+'<br>5 波试炼 + 伪证明 BOSS</div>'+
+      (best?'<div class="best">最高分 '+best+'</div>':'');
+    c.onclick=()=>startRun(i,false);
+    g.appendChild(c);
+  });
+  const e=document.createElement("div");
+  e.className="chCard endless";
+  const eb=prof.best.endless||0;
+  e.innerHTML='<h3>♾ 无尽深渊</h3><div class="tag">八章题目混编，难度无限攀升，直到倒下。<br>每 5 波一个 BOSS，看你能走多深。</div>'+
+    (eb?'<div class="best">最高分 '+eb+'</div>':'');
+  e.onclick=()=>startRun(Math.floor(Math.random()*8),true);
+  g.appendChild(e);
+  $("prog").textContent="已征服 "+doneSet.size+" / 8 层";
+}
+
+/* ================= 一局 Roguelike ================= */
+function startRun(ch,endless){
+  adoptName();
+  run={ch,endless,wave:0,hp:4,maxHp:4,score:0,combo:0,relics:new Set(),
+    shield:false,revived:false,state:"intro",type:"",timer:0,timerMax:0,
+    remaining:0,gapRound:0,gapTotal:0,gapAnswer:"",proofQueue:[],proof:null,
+    pools:{},plan:[]};
+  // 每章题池（无尽模式按需建池）
+  poolFor(ch);
+  if(!endless){
+    run.plan=shuffle(["tf","gap","match"]).concat(shuffle(["tf","gap","match"]).slice(0,2));
+    run.plan.push("boss");
+  }
+  show("menu",false);show("chapters",false);show("resOv",false);
+  $("hud").style.display="block";$("ctrlR").style.display="flex";$("quitBtn").style.display="block";
+  screen="play";
+  nextWave();
+}
+function poolFor(ch){
+  if(!run.pools[ch])run.pools[ch]={tf:shuffle(BANK[ch].tf.slice()),pair:shuffle(BANK[ch].pair.slice()),gap:shuffle(BANK[ch].gap.slice())};
+  return run.pools[ch];
+}
+function draw_(ch,kind,n){
+  const p=poolFor(ch);const out=[];
+  for(let i=0;i<n;i++){
+    if(!p[kind].length)p[kind]=shuffle(BANK[ch][kind].slice());
+    out.push(p[kind].shift());
+  }
+  return out;
+}
+function diffLv(){return run.endless?Math.floor(run.wave/3):0;}
+
+function nextWave(){
+  run.wave++;carried=null;cards=[];balls=[];
+  if(run.endless){
+    if(run.wave%5===0)run.type="boss";
+    else run.type=["tf","gap","match"][Math.floor(Math.random()*3)];
+    run.ch=Math.floor(Math.random()*8);
+  }else run.type=run.plan[run.wave-1];
+  const names={tf:"真伪审判",gap:"缺口方程",match:"速配实验室",boss:"BOSS · 伪证明法庭"};
+  const rules={
+    tf:"场上漂浮着数学命题。<b>✋捡起</b>一条，押送到左边 ✓真 或右边 ✗假 的法庭。<br>判对得分涨连击，判错掉一颗♥。命题本身就是考题——没有提示。",
+    gap:"上方的方程缺了一块 ▢。场上散落着候选符号，<b>✋捡起</b>你认为正确的那个，投进底部的 ▢ 缺口。<br>有的符号被倒挂了，按 <b>⟲/F</b> 翻转。投错掉♥。",
+    match:"场上的卡片两两成对（如函数↔导数）。<b>✋捡起</b>一张，走到它的搭档旁再按一次 <b>✋</b>。<br>配对成功消除，配错掉♥。",
+    boss:"黑板上写着一段<b>看似严密的伪证明</b>。读出致命破绽在第几步，走到对应编号球旁按 <b>✋</b> 指控。<br>指控错误的步骤会掉♥。这是对理解力的终审。"
+  };
+  $("introTitle").textContent=(run.endless?"第 "+run.wave+" 波 · ":"第 "+run.wave+"/6 波 · ")+names[run.type]
+    +(run.type!=="boss"?"（"+BANK[run.ch].name+"）":"");
+  $("introDesc").innerHTML=rules[run.type];
+  run.state="intro";show("introOv",true);
+}
+$("introGo").onclick=()=>{show("introOv",false);buildWave();};
+
+function buildWave(){
+  const d=diffLv();
+  cards=[];balls=[];carried=null;run.shield=false;
+  if(run.type==="tf"){
+    const n=Math.min(5+Math.floor(d/2),8);
+    const qs=draw_(run.ch,"tf",n);
+    qs.forEach(q=>spawnCard({text:q[0],truth:!!q[1],why:q[2],kind:"tf"}));
+    run.remaining=n;setTimer(12*n*(run.relics.has("equiv")?1.25:1)*Math.pow(0.94,d));
+    $("qline").innerHTML='⚖️ 真伪审判：把命题押送到 <b style="color:var(--green)">✓真</b>（左）或 <b style="color:var(--bad)">✗假</b>（右）法庭　<span id="remainTag"></span>';
+  }else if(run.type==="match"){
+    const m=4;
+    const ps=draw_(run.ch,"pair",m);
+    ps.forEach((p,i)=>{spawnCard({text:p[0],pid:i,kind:"match"});spawnCard({text:p[1],pid:i,kind:"match"});});
+    run.remaining=m*2;setTimer(17*m*(run.relics.has("equiv")?1.25:1)*Math.pow(0.94,d));
+    $("qline").innerHTML='🧪 速配实验室：捡一张，走到它的搭档旁再按 ✋　<span id="remainTag"></span>';
+  }else if(run.type==="gap"){
+    run.gapTotal=Math.min(3+Math.floor(d/2),5);run.gapRound=0;
+    setTimer(24*run.gapTotal*(run.relics.has("equiv")?1.25:1)*Math.pow(0.94,d));
+    nextGap();
+  }else{ // boss
+    setTimer(0);
+    let pool=PROOFS.filter(p=>p.ch===run.ch);
+    if(run.endless)pool=PROOFS.slice();
+    pool=shuffle(pool.slice());
+    run.proofQueue=pool.slice(0,2);
+    if(run.proofQueue.length<2)run.proofQueue.push(shuffle(PROOFS.filter(p=>!run.proofQueue.includes(p)))[0]);
+    nextProof();
+  }
+  run.state="fight";refreshHUD();resize();clampCards();
+}
+function setTimer(s){run.timerMax=s;run.timer=s;$("timerWrap").style.visibility=s>0?"visible":"hidden";}
+
+function nextGap(){
+  run.gapRound++;
+  cards=cards.filter(c=>false);carried=null;
+  const g=draw_(run.ch,"gap",1)[0];
+  run.gapAnswer=g[1];
+  let decs=g[2].slice();
+  if(g[3])decs=decs.filter(t=>t!==flipText(g[1]));
+  if(run.relics.has("taylor")&&decs.length>2)decs=shuffle(decs).slice(0,decs.length-1);
+  spawnCard({text:g[3]?flipText(g[1]):g[1],kind:"gap",val:g[1]});
+  decs.forEach(t=>spawnCard({text:t,kind:"gap",val:t}));
+  $("qline").innerHTML='🧩 缺口方程（第'+run.gapRound+'/'+run.gapTotal+'题）：<span class="q serif">'+g[0].replace("▢",'<b style="color:var(--pink)">▢</b>')+'</span>　把正确符号投进底部缺口';
+  resize();clampCards();
+}
+function nextProof(){
+  run.proof=run.proofQueue.shift();
+  balls=[];cards=[];carried=null;
+  const P=run.proof;
+  let html='👨‍⚖️ <b>'+P.t+'</b>　——破绽藏在第几步？走到编号球旁按 ✋ 指控<ol id="proofList">';
+  P.L.forEach((l,i)=>{html+='<li id="pl'+i+'"><span class="num">'+"①②③④⑤⑥"[i]+'</span><span class="serif">'+l+'</span></li>';});
+  $("qline").innerHTML=html+"</ol>";
+  const n=P.L.length;
+  for(let i=0;i<n;i++){
+    balls.push({i,x:80+(W-160)*(i+0.5)/n+rand(-20,20),y:rand(topPad+90,H-90),tried:false,ph:Math.random()*7});
+  }
+  resize();
+  for(const b of balls){b.y=Math.max(topPad+70,Math.min(H-70,b.y));}
+}
+
+/* ================= 卡片 ================= */
+function measureCard(text){
+  ctx.font='600 14px Georgia,"STIXGeneral",serif';
+  const maxW=168;const lines=[];let cur="";
+  for(const ch of text){
+    if(ctx.measureText(cur+ch).width>maxW){lines.push(cur);cur=ch;}
+    else cur+=ch;
+  }
+  if(cur)lines.push(cur);
+  let w=0;lines.forEach(l=>w=Math.max(w,ctx.measureText(l).width));
+  return{lines,w:w+22,h:lines.length*18+16};
+}
+function spawnCard(o){
+  const m=measureCard(o.text);
+  const d=diffLv();
+  const c=Object.assign({x:0,y:0,vx:rand(-1,1),vy:rand(-1,1),
+    w:m.w,h:m.h,lines:m.lines,sp:(13+d*6)*(o.kind==="gap"?0.7:1),ph:Math.random()*7,fl:0},o);
+  const L=Math.hypot(c.vx,c.vy)||1;c.vx/=L;c.vy/=L;
+  // 摆位：避开已有卡片
+  for(let tr=0;tr<150;tr++){
+    c.x=rand(60+c.w/2,W-60-c.w/2);c.y=rand(topPad+60,H-120);
+    let ok=true;
+    for(const o2 of cards)if(Math.abs(c.x-o2.x)<(c.w+o2.w)/2+14&&Math.abs(c.y-o2.y)<(c.h+o2.h)/2+14)ok=false;
+    if(Math.hypot(c.x-player.x,c.y-player.y)<90)ok=false;
+    if(ok)break;
+  }
+  c.flippable=isFlippable(c.text);
+  cards.push(c);
+  return c;
+}
+function clampCards(){for(const c of cards){c.y=Math.max(topPad+40+c.h/2,Math.min(H-110,c.y));}}
+
+/* ================= 行动 ================= */
+function actRadius(){return run&&run.relics.has("radius")?128:80;}
+function nearestCard(){
+  let best=null,bd=actRadius();
+  for(const c of cards){if(c===carried)continue;
+    const d=Math.hypot(c.x-player.x,c.y-player.y);if(d<bd){bd=d;best=c}}
+  return best;
+}
+function nearestBall(){
+  let best=null,bd=actRadius();
+  for(const b of balls){if(b.tried)continue;
+    const d=Math.hypot(b.x-player.x,b.y-player.y);if(d<bd){bd=d;best=b}}
+  return best;
+}
+function act(){
+  if(!run||run.state!=="fight")return;
+  if(run.type==="boss"){
+    const b=nearestBall();
+    if(!b){toast("走到嫌疑步骤的编号球旁再指控");return;}
+    accuse(b);return;
+  }
+  if(carried){
+    if(run.type==="match"){
+      const c=nearestCard();
+      if(c){judgeMatch(carried,c);return;}
+    }
+    // 放下
+    carried.x=player.x;carried.y=Math.min(H-110,player.y+6);carried=null;sndPick();
+    return;
+  }
+  const c=nearestCard();
+  if(c){carried=c;sndPick();}
+  else toast("附近没有可拾取的符号");
+}
+function flipAct(){
+  if(!run||run.state!=="fight")return;
+  let t=carried;
+  if(!t){t=nearestCard();if(t&&!t.flippable)t=null;}
+  if(t&&t.flippable){
+    t.text=flipText(t.text);
+    const m=measureCard(t.text);t.lines=m.lines;t.w=m.w;t.h=m.h;
+    t.fl=1;t.flippable=isFlippable(t.text);
+    beep(330,.14,"square",.07);puff(t===carried?player.x:t.x,t===carried?player.y-40:t.y,"#f6c94e");
+  }else if(t)toast("它翻过去还是它自己 🤷");
+  else toast("附近没有可翻转（带⟲）的符号");
+}
+
+/* ================= 判定 ================= */
+function correct(msg){
+  run.combo++;const mult=1+Math.min(run.combo,20)*0.1;
+  const pts=Math.round(100*mult);run.score+=pts;
+  sndOK();if(msg)toast(msg+'　<b style="color:var(--gold)">+'+pts+"</b>",1700);
+  refreshHUD();
+}
+function damage(why){
+  if(run.relics.has("squeeze")&&!run.shield){
+    run.shield=true;toast("📐 夹逼定理把这次伤害夹住了！<br>"+(why||""),2600);refreshHUD();return;
+  }
+  if(!run.relics.has("mono"))run.combo=0;
+  run.hp--;sndBad();flashRed();
+  if(run.hp<=0){
+    if(run.relics.has("ivt")&&!run.revived){
+      run.revived=true;run.hp=1;
+      toast("ξ 介值定理显灵：在生死之间取到中间值，续命！",2600);
+    }else{refreshHUD();endRun(false,why);return;}
+  }
+  if(why)toast("💔 "+why,3200);
+  refreshHUD();
+}
+function judgeTF(card,zoneTruth){
+  cards=cards.filter(c=>c!==card);carried=null;run.remaining--;
+  if(card.truth===zoneTruth)correct((card.truth?"✓ 确为真命题":"✗ 确为假命题"));
+  else damage((card.truth?"它其实是真的：":"它其实是假的：")+card.why);
+  updRemain();
+  if(run.remaining<=0&&run.state==="fight")waveClear();
+}
+function judgeMatch(a,b){
+  if(a.pid===b.pid){
+    cards=cards.filter(c=>c!==a&&c!==b);carried=null;run.remaining-=2;
+    correct("🔗 配对成功");puff(b.x,b.y,"#9ed8a0");
+    updRemain();
+    if(run.remaining<=0&&run.state==="fight")waveClear();
+  }else{
+    carried.x=player.x;carried.y=player.y+6;carried=null;
+    damage("「"+a.text+"」和「"+b.text+"」不是一对");
+  }
+}
+function judgeGap(card){
+  cards=cards.filter(c=>c!==card);carried=null;
+  if(card.text===run.gapAnswer){
+    correct("🧩 缺口补上了");
+    if(run.gapRound>=run.gapTotal){if(run.state==="fight")waveClear();}
+    else nextGap();
+  }else if(flipText(card.text)===run.gapAnswer){
+    damage("方向反了——就差一个 ⟲ 翻转！符号已碎");
+  }else{
+    damage("「"+card.text+"」填不进这个缺口");
+    if(!cards.length){toast("候选耗尽……这题跳过",2000);
+      if(run.gapRound>=run.gapTotal)waveClear();else nextGap();}
+  }
+}
+function accuse(b){
+  const P=run.proof;
+  if(b.i===P.bad){
+    balls=[];
+    document.querySelectorAll("#proofList li").forEach((li,i)=>{if(i===P.bad)li.classList.add("dead")});
+    correct("⚖️ 破绽确认！第"+(P.bad+1)+"步有罪");
+    run.state="why";
+    $("whyTitle").textContent="第 "+(P.bad+1)+" 步 · 罪证陈词";
+    $("whyText").textContent=P.why;
+    show("whyOv",true);
+  }else{
+    b.tried=true;
+    const li=$("pl"+b.i);if(li)li.classList.add("tried");
+    damage("第"+(b.i+1)+"步其实无懈可击，再读一遍");
+  }
+}
+$("whyGo").onclick=()=>{
+  show("whyOv",false);
+  if(run.proofQueue.length){run.state="fight";nextProof();}
+  else waveClear();
+};
+function updRemain(){const r=$("remainTag");if(r)r.textContent="剩余 "+run.remaining;}
+
+/* ================= 波次推进 ================= */
+function waveClear(){
+  run.state="pause";
+  let bonus=0;
+  if(run.timerMax>0){bonus=Math.ceil(run.timer)*3;run.score+=bonus;}
+  toast("🌊 本波肃清！"+(bonus?"　时间奖励 +"+bonus:""),2200);
+  refreshHUD();
+  const isLast=!run.endless&&run.wave>=run.plan.length;
+  if(isLast){endRun(true);return;}
+  setTimeout(offerRelic,700);
+}
+function offerRelic(){
+  const owned=run.relics;
+  let opts=shuffle(RELICS.filter(r=>!owned.has(r.id))).slice(0,3);
+  while(opts.length<3)opts.push({heal:true,icon:"♥",name:"连续性公理",desc:"血量连续地 +1（上限 "+(run.maxHp+1<=6?run.maxHp:6)+"）"});
+  const box=$("relicOpts");box.innerHTML="";
+  opts.forEach(r=>{
+    const b=document.createElement("button");b.className="btn relicBtn";
+    b.innerHTML='<span class="rname serif">'+r.icon+"</span> <span class='rname'>"+r.name+"</span><br><span class='rdesc'>"+r.desc+"</span>";
+    b.onclick=()=>{
+      if(r.heal){run.maxHp=Math.min(6,run.maxHp+0);run.hp=Math.min(run.maxHp+ (run.maxHp<6?(run.maxHp++,1):0)*0,Math.min(6,run.hp+1));if(run.hp>run.maxHp)run.maxHp=run.hp;}
+      else run.relics.add(r.id);
+      show("relicOv",false);refreshHUD();nextWave();
+    };
+    box.appendChild(b);
+  });
+  show("relicOv",true);
+}
+function endRun(victory,why){
+  run.state="over";
+  const key=run.endless?"endless":"ch"+run.ch;
+  const old=prof.best[key]||0;
+  prof.best[key]=Math.max(old,run.score);
+  if(victory&&!run.endless)doneSet.add(run.ch);
+  saveProf();
+  if(victory)sndWin();
+  $("resTitle").textContent=victory?"🏆 深渊征服！":"💀 倒在深渊";
+  $("resStats").innerHTML=(why?'<div style="font-size:13px;opacity:.8;margin-bottom:8px">致命一击：'+why+"</div>":"")+
+    "本局得分 <b>"+run.score+"</b>"+(run.score>old?'　<span style="color:var(--green)">新纪录！</span>':"　历史最高 "+Math.max(old,run.score))+
+    "<br>抵达波次 "+run.wave+(run.endless?"":"/6")+"　收集神器 "+run.relics.size+" 件";
+  show("relicOv",false);show("whyOv",false);show("resOv",true);
+}
+$("resRetry").onclick=()=>{show("resOv",false);startRun(run.ch,run.endless);};
+$("resBack").onclick=()=>{show("resOv",false);quitToChapters();};
+$("quitBtn").onclick=()=>{if(run&&run.state!=="over"){prof.best[run.endless?"endless":"ch"+run.ch]=Math.max(prof.best[run.endless?"endless":"ch"+run.ch]||0,run.score);saveProf();}quitToChapters();};
+function quitToChapters(){
+  screen="chapters";run=null;cards=[];balls=[];carried=null;
+  $("hud").style.display="none";$("ctrlR").style.display="none";$("quitBtn").style.display="none";
+  buildChGrid();show("chapters",true);
+}
+
+function refreshHUD(){
+  if(!run)return;
+  $("hearts").textContent="♥".repeat(Math.max(0,run.hp))+"♡".repeat(Math.max(0,run.maxHp-run.hp));
+  $("score").textContent="分数 "+run.score;
+  $("combo").textContent=run.combo>1?"连击 ×"+run.combo:"";
+  $("waveTag").textContent=(run.endless?"∞ 第"+run.wave+"波":"第"+run.wave+"/6波");
+  $("relicRow").textContent=[...run.relics].map(id=>RELICS.find(r=>r.id===id).icon).join(" ");
+}
+
+/* ================= 输入 ================= */
+const keys={};
+addEventListener("keydown",e=>{
+  keys[e.key.toLowerCase()]=true;
+  const k=e.key.toLowerCase();
+  if(k==="e"||k===" "){act();e.preventDefault();}
+  if(k==="f")flipAct();
+  if(["arrowup","arrowdown","arrowleft","arrowright"].includes(k))e.preventDefault();
+});
+addEventListener("keyup",e=>keys[e.key.toLowerCase()]=false);
+let stick=null;
+cv.addEventListener("touchstart",e=>{
+  for(const t of e.changedTouches)if(!stick)stick={ox:t.clientX,oy:t.clientY,dx:0,dy:0,id:t.identifier};
+  e.preventDefault();},{passive:false});
+cv.addEventListener("touchmove",e=>{
+  for(const t of e.changedTouches)if(stick&&t.identifier===stick.id){
+    let dx=t.clientX-stick.ox,dy=t.clientY-stick.oy;const m=Math.hypot(dx,dy);
+    if(m>52){dx*=52/m;dy*=52/m}stick.dx=dx;stick.dy=dy;}
+  e.preventDefault();},{passive:false});
+const endT=e=>{for(const t of e.changedTouches)if(stick&&t.identifier===stick.id)stick=null;};
+cv.addEventListener("touchend",endT);cv.addEventListener("touchcancel",endT);
+$("pickBtn").onclick=act;$("flipBtn").onclick=flipAct;
+
+/* ================= 粒子 ================= */
+function puff(x,y,c){for(let i=0;i<10;i++)particles.push({x,y,vx:rand(-90,90),vy:rand(-130,10),life:rand(.4,.8),t:0,c,r:rand(2,4)});}
+
+/* ================= 绘制 ================= */
+function chalk(c,w){ctx.strokeStyle=c;ctx.lineWidth=w;ctx.lineCap="round";ctx.shadowColor=c;ctx.shadowBlur=3;}
+const noShadow=()=>ctx.shadowBlur=0;
+function drawBoard(dt){
+  ctx.fillStyle="#1d3a31";ctx.fillRect(0,0,W,H);
+  ctx.strokeStyle="rgba(243,239,226,.04)";ctx.lineWidth=1;
+  for(let x=0;x<W;x+=48){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
+  for(let y=0;y<H;y+=48){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+  if(run){ctx.save();ctx.globalAlpha=.05;ctx.fillStyle="#f3efe2";
+    ctx.font="700 110px Georgia,serif";ctx.textAlign="center";ctx.textBaseline="middle";
+    ctx.fillText(BANK[run.ch].icon,W/2,H/2+40);ctx.restore();}
+  ctx.fillStyle="rgba(243,239,226,.09)";
+  for(const d of dust){d.y+=d.s*dt;if(d.y>H){d.y=-4;d.x=Math.random()*W}
+    ctx.beginPath();ctx.arc(d.x,d.y,d.r,0,7);ctx.fill();}
+  const g=ctx.createRadialGradient(W/2,H/2,H*.35,W/2,H/2,W*.75);
+  g.addColorStop(0,"rgba(0,0,0,0)");g.addColorStop(1,"rgba(8,18,15,.55)");
+  ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+}
+function drawZones(){
+  if(!run||run.state!=="fight")return;
+  ctx.textAlign="center";ctx.textBaseline="middle";
+  if(run.type==="tf"){
+    zone(95,H-78,56,"✓ 真","#9ed8a0");zone(W-95,H-78,56,"✗ 假","#e8836f");
+  }else if(run.type==="gap"){
+    zone(W/2,H-72,52,"▢ 缺口","#f6c94e");
+  }
+}
+function zone(x,y,r,label,col){
+  ctx.save();ctx.strokeStyle=col;ctx.lineWidth=3;ctx.setLineDash([8,7]);
+  ctx.shadowColor=col;ctx.shadowBlur=8;
+  ctx.beginPath();ctx.arc(x,y,r,0,7);ctx.stroke();ctx.setLineDash([]);noShadow();
+  ctx.fillStyle=col;ctx.font="700 17px inherit, sans-serif";
+  ctx.font="700 17px 'Chalkboard SE','Comic Sans MS',sans-serif";
+  ctx.fillText(label,x,y);ctx.restore();
+}
+function drawCards(){
+  const near=carriedFree()?null:null;
+  const nc=(!carried)?nearestCard():null;
+  const nm=(carried&&run.type==="match")?nearestCard():null;
+  for(const c of cards){
+    if(c===carried)continue;
+    c.ph+=.03;if(c.fl>0)c.fl=Math.max(0,c.fl-.07);
+    const bob=Math.sin(c.ph)*3;
+    const hl=(c===nc||c===nm);
+    ctx.save();ctx.translate(c.x,c.y+bob);
+    ctx.scale(1-Math.sin(c.fl*Math.PI)*.9,1);
+    ctx.fillStyle="rgba(243,239,226,.07)";
+    ctx.strokeStyle=hl?"#8fc7e8":"rgba(243,239,226,.75)";
+    ctx.lineWidth=hl?2.5:1.6;ctx.shadowColor=hl?"#8fc7e8":"#f3efe2";ctx.shadowBlur=hl?12:3;
+    roundRect(-c.w/2,-c.h/2,c.w,c.h,9);ctx.fill();ctx.stroke();noShadow();
+    ctx.fillStyle=hl?"#cde8f8":"#f3efe2";
+    ctx.font='600 14px Georgia,"STIXGeneral",serif';ctx.textAlign="center";ctx.textBaseline="middle";
+    c.lines.forEach((l,i)=>ctx.fillText(l,0,(i-(c.lines.length-1)/2)*18));
+    if(c.flippable){ctx.font="11px sans-serif";ctx.fillStyle="rgba(246,201,78,.9)";
+      ctx.fillText("⟲",c.w/2-9,-c.h/2+9);}
+    if(hl){ctx.font="10px sans-serif";ctx.fillStyle="rgba(143,199,232,.85)";
+      ctx.fillText(carried?"✋ 配对":"✋ 拾取",0,c.h/2+12);}
+    ctx.restore();
+  }
+}
+function carriedFree(){return !carried;}
+function roundRect(x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);
+  ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();}
+function drawBalls(){
+  const nb=nearestBall();
+  for(const b of balls){
+    b.ph+=.04;const bob=Math.sin(b.ph)*4;
+    const hl=b===nb&&!b.tried;
+    ctx.save();ctx.translate(b.x,b.y+bob);
+    chalk(b.tried?"rgba(243,239,226,.3)":(hl?"#f6c94e":"#f3efe2"),2.5);
+    ctx.beginPath();ctx.arc(0,0,26,0,7);ctx.stroke();noShadow();
+    ctx.fillStyle=b.tried?"rgba(243,239,226,.3)":(hl?"#f6c94e":"#f3efe2");
+    ctx.font="700 22px Georgia,serif";ctx.textAlign="center";ctx.textBaseline="middle";
+    ctx.fillText(""+(b.i+1),0,1);
+    if(hl){ctx.font="10px sans-serif";ctx.fillText("✋ 指控",0,40);}
+    ctx.restore();
+  }
+}
+function drawPlayer(){
+  const p=player;
+  const moving=Math.abs(p.vx)+Math.abs(p.vy)>10;
+  if(moving)p.ph+=.22;else p.ph*=.9;
+  const swing=Math.sin(p.ph)*(moving?7:0),bob=Math.abs(Math.sin(p.ph))*(moving?2.5:0);
+  ctx.save();ctx.translate(p.x,p.y-bob);ctx.scale(p.face,1);
+  ctx.fillStyle="rgba(0,0,0,.3)";ctx.beginPath();ctx.ellipse(0,26,20,5,0,0,7);ctx.fill();
+  chalk("#f3efe2",6.5);
+  ctx.beginPath();ctx.moveTo(-22,-14);ctx.quadraticCurveTo(0,-18,24,-15);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(-11,-13);ctx.quadraticCurveTo(-13+swing*.3,5,-12+swing,24);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(11,-13);ctx.quadraticCurveTo(13-swing*.3,5,12-swing,20);
+  ctx.quadraticCurveTo(15-swing,27,20-swing,23);ctx.stroke();noShadow();
+  ctx.fillStyle="#f3efe2";
+  ctx.beginPath();ctx.arc(-4,-6,5.6,0,7);ctx.fill();ctx.beginPath();ctx.arc(7,-6,5.6,0,7);ctx.fill();
+  ctx.fillStyle="#1d3a31";
+  ctx.beginPath();ctx.arc(-3+p.face,-6,2.4,0,7);ctx.fill();ctx.beginPath();ctx.arc(8+p.face,-6,2.4,0,7);ctx.fill();
+  ctx.fillStyle="rgba(239,155,176,.7)";
+  ctx.beginPath();ctx.arc(-9,0,2.4,0,7);ctx.fill();ctx.beginPath();ctx.arc(12,0,2.4,0,7);ctx.fill();
+  ctx.strokeStyle="#f3efe2";ctx.lineWidth=2;
+  ctx.beginPath();ctx.arc(1.5,-1,4.5,.25,Math.PI-.25);ctx.stroke();
+  ctx.restore();
+  // 携带的卡片悬在头顶
+  if(carried){
+    const c=carried;
+    ctx.save();ctx.translate(p.x,p.y-46-bob);ctx.scale(.9,.9);
+    if(c.fl>0)c.fl=Math.max(0,c.fl-.07);
+    ctx.scale(1-Math.sin(c.fl*Math.PI)*.9,1);
+    ctx.fillStyle="rgba(246,201,78,.12)";ctx.strokeStyle="#f6c94e";ctx.lineWidth=2;
+    ctx.shadowColor="#f6c94e";ctx.shadowBlur=10;
+    roundRect(-c.w/2,-c.h/2,c.w,c.h,9);ctx.fill();ctx.stroke();noShadow();
+    ctx.fillStyle="#f6c94e";ctx.font='600 14px Georgia,"STIXGeneral",serif';
+    ctx.textAlign="center";ctx.textBaseline="middle";
+    c.lines.forEach((l,i)=>ctx.fillText(l,0,(i-(c.lines.length-1)/2)*18));
+    if(c.flippable){ctx.font="11px sans-serif";ctx.fillText("⟲",c.w/2-9,-c.h/2+9);}
+    ctx.restore();
+  }
+}
+function drawStick(){
+  if(!stick)return;
+  ctx.save();ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+  ctx.globalAlpha=.45;ctx.strokeStyle="#f3efe2";ctx.lineWidth=2;
+  ctx.beginPath();ctx.arc(stick.ox,stick.oy,44,0,7);ctx.stroke();
+  ctx.fillStyle="#f6c94e";ctx.beginPath();ctx.arc(stick.ox+stick.dx,stick.oy+stick.dy,18,0,7);ctx.fill();
+  ctx.restore();
+}
+
+/* ================= 主循环 ================= */
+let last=performance.now();
+function loop(now){
+  requestAnimationFrame(loop);
+  let dt=Math.min(.05,(now-last)/1000);last=now;
+  ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+  ctx.fillStyle="#0f211b";ctx.fillRect(0,0,innerWidth,innerHeight);
+  const sx=shake>0?rand(-shake,shake):0,sy=shake>0?rand(-shake,shake):0;
+  if(shake>0)shake=Math.max(0,shake-40*dt);
+  ctx.setTransform(scale*devicePixelRatio,0,0,scale*devicePixelRatio,(offX+sx)*devicePixelRatio,(offY+sy)*devicePixelRatio);
+  if(screen!=="play"||!run){return;}
+  const fighting=run.state==="fight";
+  // 移动
+  let ax=0,ay=0;
+  if(keys["arrowleft"]||keys["a"])ax--;if(keys["arrowright"]||keys["d"])ax++;
+  if(keys["arrowup"]||keys["w"])ay--;if(keys["arrowdown"]||keys["s"])ay++;
+  if(stick){ax+=stick.dx/52;ay+=stick.dy/52;}
+  const m=Math.hypot(ax,ay);if(m>1){ax/=m;ay/=m}
+  const SP=260*(run.relics.has("ratio")?1.3:1);
+  player.vx=ax*SP;player.vy=ay*SP;
+  if(Math.abs(player.vx)>5)player.face=player.vx>0?1:-1;
+  if(fighting){
+    player.x=Math.max(26,Math.min(W-26,player.x+player.vx*dt));
+    player.y=Math.max(topPad+26,Math.min(H-28,player.y+player.vy*dt));
+  }
+  // 卡片漂移
+  for(const c of cards){
+    if(c===carried)continue;
+    c.x+=c.vx*c.sp*dt;c.y+=c.vy*c.sp*dt;
+    if(c.x<c.w/2+34||c.x>W-c.w/2-34)c.vx*=-1;
+    if(c.y<topPad+34+c.h/2||c.y>H-112)c.vy*=-1;
+    c.x=Math.max(c.w/2+34,Math.min(W-c.w/2-34,c.x));
+    c.y=Math.max(topPad+34+c.h/2,Math.min(H-112,c.y));
+  }
+  // 区域投递
+  if(fighting&&carried){
+    if(run.type==="tf"){
+      if(Math.hypot(player.x-95,player.y-(H-78))<56)judgeTF(carried,true);
+      else if(Math.hypot(player.x-(W-95),player.y-(H-78))<56)judgeTF(carried,false);
+    }else if(run.type==="gap"){
+      if(Math.hypot(player.x-W/2,player.y-(H-72))<52)judgeGap(carried);
+    }
+  }
+  // 计时
+  if(fighting&&run.timerMax>0){
+    run.timer-=dt;
+    $("timerBar").style.width=Math.max(0,run.timer/run.timerMax*100)+"%";
+    $("timerBar").style.background=run.timer<run.timerMax*.25?"var(--bad)":"var(--gold)";
+    if(run.timer<=0){
+      run.timer=0;
+      toast("⏳ 时间到！未处理的题按一次失误结算");
+      damage("超时——犹豫就会败北");
+      if(run.state==="fight"){cards=[];carried=null;run.remaining=0;waveClear();}
+    }
+  }
+  drawBoard(dt);drawZones();drawCards();drawBalls();drawPlayer();
+  for(const p of [...particles]){
+    p.t+=dt;if(p.t>p.life){particles.splice(particles.indexOf(p),1);continue;}
+    p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=160*dt;
+    ctx.globalAlpha=1-p.t/p.life;ctx.fillStyle=p.c;
+    ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,7);ctx.fill();ctx.globalAlpha=1;
+  }
+  drawStick();
+}
+
+/* ================= 界面接线 ================= */
+$("btnStart").onclick=()=>{adoptName();show("menu",false);buildChGrid();show("chapters",true);screen="chapters";};
+$("btnHome").onclick=()=>{show("chapters",false);show("menu",true);screen="menu";};
+$("nameIn").value=playerName;
+syncLoad();
+resize();requestAnimationFrame(loop);
+</script>
+</body>
+</html>
